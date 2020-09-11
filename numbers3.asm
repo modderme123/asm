@@ -6,19 +6,17 @@ start:
         pop r8                         ; first param is binary file
         dec rdx                        ; remove it from the count
 
-        test rdx, rdx
-        jz end
+        test rdx, rdx                  ; if rdx is 0 jump to the end
+        jz end                         ; that way we don't read empty memory
 
-        mov r11, 0
+        mov r10, 10                    ; r10 holds the constant 10 for mul and div
 next_param:
         dec rdx
         pop r8
         mov r9, [r8]
-        mov rax, 0
 next_char:
         push rdx
         sub r9, '0'
-        mov r10, 10
         mul r10
         add al, r9b
         pop rdx
@@ -49,35 +47,34 @@ next_char:
         syscall                        ; invoke os to write
 end:
         mov rax, 0x02000001            ; system call for exit
-        mov rdi, 0                     ; exit code 0
+        xor rdi, rdi                   ; exit code 0
         syscall                        ; invoke operating system to exit
 
 print:
-        mov r9, rax                    ; copy of r10
+        push rdx
+
+        xor rdx, rdx
 len:
         inc rcx                        ; count length of number in binary
-        shr r9, 1                      ; remove rightmost digit
-        test r9, r9                    ; check if r9 is 0
+        div r10
+        push rdx
+        xor rdx, rdx
+        test rax, rax                  ; check if r9 is 0
         jnz len                        ; if not 0, repeat
-
-        ror rax, cl                    ; align the number to the left side (...000001101 -> 110100000...)
 next:
-        mov r9, rax                    ; copy r8 to r9
-        rol r9, 1                      ; move leftmost digit to the right
-        and r9, 1                      ; isolate right most digit
-
-        add r9, '0'                   ; '0' + 1 = '1' | '0' + 0 = '0'
-        mov [rbx], r9                 ; set output[rbx] = '0' | '1'
+        pop rdx                        ; grab the leftmost digit from stack
+        add rdx, '0'                   ; '0' + 1 = '1'
+        mov [rbx], rdx                 ; set output[rbx] to 0-9
 
         inc rbx                        ; move to next digit in output
-        shl rax, 1                     ; drop the leftmost digit
-        dec rcx                        ; decrease digits left to print
 
+        dec rcx                        ; digits_left--
         test rcx, rcx                  ; is digits left to go 0
         jnz next                       ; else jump to next
 
+        pop rdx
         ret
 
         section .bss
 output:
-        resb 200
+        resb 64
